@@ -1,0 +1,29 @@
+# Go binaries, tests, and coverage artifacts
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.*
+
+# Node / Vite client artifacts
+/client/node_modules/
+/client/dist/
+/client/.vite/
+*.local
+npm-debug.log*
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# OS & IDE files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

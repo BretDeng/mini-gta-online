@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  repo-checks:
+    name: Repository & Compose Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify required repository documentation
+        run: |
+          test -f README.md
+          test -f docs/architecture.jpg
+          test -f docs/DEVIN_KICKOFF.md
+
+      - name: Validate docker-compose.yml if present
+        run: |
+          if [ -f docker-compose.yml ]; then
+            docker compose config -q
+          else
+            echo "docker-compose.yml not yet added (pending Task 1)"
+          fi
+
+  server-checks:
+    name: Server Go Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect server Go module
+        id: detect
+        run: |
+          if [ -f server/go.mod ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "server/go.mod not yet added (pending Task 1)"
+          fi
+
+      - name: Set up Go
+        if: steps.detect.outputs.exists == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Vet and test server
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: server
+        run: |
+          go vet ./...
+          go test -race -count=1 ./...
+
+  client-checks:
+    name: Client TypeScript Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect client package.json
+        id: detect
+        run: |
+          if [ -f client/package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "client/package.json not yet added (pending Task 1)"
+          fi
+
+      - name: Set up Node.js
+        if: steps.detect.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies and build client
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: client
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+          npm run build
+          npm test --if-present
+
+  loadtest-checks:
+    name: Load Test Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect loadtest Go module
+        id: detect
+        run: |
+          if [ -f loadtest/go.mod ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "loadtest/go.mod not yet added (pending Task 4: 100-bot load test & Redis CI gate)"
+          fi
+
+      - name: Set up Go
+        if: steps.detect.outputs.exists == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: loadtest/go.mod
+          cache-dependency-path: loadtest/go.sum
+
+      - name: Vet and test loadtest
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: loadtest
+        run: |
+          go vet ./...
+          go test -race ./...
